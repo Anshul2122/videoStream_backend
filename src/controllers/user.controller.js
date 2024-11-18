@@ -4,6 +4,7 @@ import {uploadOnCloudinary} from "../utils/cloudinary.js";
 import ApiError from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
+
 const registerUser = asyncHandler(async (req, res,next) => {
 
   //    get user details from frontend
@@ -25,23 +26,26 @@ const registerUser = asyncHandler(async (req, res,next) => {
     throw new ApiError(400, "all fields are required");
   }
   //    check of user already exits: username, email
-  const exitedUser = User.findOne({$or:[{username},{email}]});
+  const exitedUser = await User.findOne({$or:[{username},{email}]});
   if(exitedUser){
     throw new ApiError(409, "User with email or username exists");
   }
   //    check for images, check for avatar
-  const avatarLocalPath = req.files?.avatar[0]?.path;
-  console.log(avatarLocalPath);
+  const avatarLocalPath = req.files?.avatar[0].path;
 
-  const coverImageLocalPath = req.files?.coverImage[0]?.path;
-  console.log(coverImageLocalPath);
-  //    upload them to cloudinary, avatar
-  if(!avatarLocalPath){
-    throw new ApiError(400, "avatar is required");
+  let coverImageLocalPath;
+  let coverImage;
+  if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0){
+    coverImageLocalPath = req.files.coverImage[0].path;
+    coverImage = await uploadOnCloudinary(coverImageLocalPath);
   }
-
+  //    upload them to cloudinary, avatar
   const avatar = await uploadOnCloudinary(avatarLocalPath);
-  const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+  // let avatarImage =  req.files.avatar;
+  // console.log("avatar: ", avatarImage);
+
+
+
   if(!avatar){
     throw new ApiError(400, "avatar is required");
   }
@@ -51,7 +55,8 @@ const registerUser = asyncHandler(async (req, res,next) => {
     fullName,
     email,
     username:username.toLowerCase(),
-    password, avatar:avatar.url,
+    password,
+    avatar:avatar.url,
     coverImage:coverImage?.url || "",
   });
   //    remove password and refresh token field from response
