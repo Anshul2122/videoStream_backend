@@ -7,18 +7,82 @@ import {asyncHandler} from "../utils/asyncHandler.js"
 
 const createTweet = asyncHandler(async (req, res) => {
   //TODO: create tweet
+  const {content} = req.body
+  if(!content){
+    throw new ApiError(400,"tweet content is required");
+  }
+  const tweet = await Tweet.create({
+    content,
+    owner:req.user._id,
+  });
+  if(!tweet){
+    throw new ApiError(500, "error wjile creating tweet content");
+  }
+
+  return res.status(201).json(new ApiResponse(200, tweet, "tweet created"));
 })
 
 const getUserTweets = asyncHandler(async (req, res) => {
   // TODO: get user tweets
+  const {userId} = req.params
+  if(!isValidObjectId(userId)) {
+    throw new ApiError(400, "Invalid user id");
+  }
+  const tweet = await Tweet.findById({ owner: userId })
+
+  if(tweet.length===0){
+    throw new ApiError(404, "No tweet found with id ");
+  }
+
+  return res.status(200).json(new ApiResponse(200, tweet, "all tweets of user"));
 })
 
 const updateTweet = asyncHandler(async (req, res) => {
   //TODO: update tweet
-})
+  const {content} = req.body
+  if(!content){
+    throw new ApiError(400, "content is required");
+  }
+  const {tweetId} = req.params;
+  const tweet = await Tweet.findById(tweetId);
+  if(!tweet){
+    throw new ApiError(404, "tweet not found");
+  }
+  const owner = req.user._id;
+  if(tweet.owner !== owner){
+    throw new ApiError(403, "You are not allowed to update this video");
+  }
+  const modifiedTweet = await Tweet.findByIdAndUpdate(
+    tweetId,
+    {
+      $set:{
+        content,
+      }
+    },
+    {new: true}
+  )
+
+  return res.status(200).json(new ApiResponse(200, modifiedTweet, "tweet updated"));
+});
 
 const deleteTweet = asyncHandler(async (req, res) => {
   //TODO: delete tweet
+  const {tweetId} = req.params;
+  const tweet = await Tweet.findById(tweetId);
+  if(!tweet){
+    throw new ApiError(404, "tweet not found");
+  }
+  const owner = req.user._id;
+  if(tweet.owner !== owner){
+    throw new ApiError(403, "You are not allowed to update this video");
+  }
+
+  const deletedTweet = await Tweet.findByIdAndDelete(tweetId);
+  if(!deletedTweet){
+    throw new ApiError(400, "Something went wrong while deleting the tweet");
+  }
+
+  return res.status(200).json(new ApiResponse(200, tweet, "tweet deleted"));
 })
 
 export {
